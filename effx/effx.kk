@@ -1,3 +1,11 @@
+/*----------------------------------------------------------------------------
+   Copyright 2026, Xingjian Liu
+
+   Licensed under the MIT License. You may not use this file except in
+   compliance with the License. A copy of the License can be found in the
+   LICENSE file at the root of this distribution.
+----------------------------------------------------------------------------*/
+
 // Effx — fine-grained reactive UI on top of Koka's algebraic effect handlers.
 //
 // Design at a glance:
@@ -5,18 +13,18 @@
 //   - `state<a>` is a reactive cell. Each cell has a unique `sid` and a
 //     subscribers dict (keyed by `obs-id`).
 //   - `react` provides `get` and `set` operations on cells. `get` captures
-//     a continuation that is fired when the cell changes; `set` writes the new
-//     value and dispatches all current subscribers.
-//   - `handle-eff` installs a react handler. Each installation gets a
+//     a continuation that is fired when the cell changes; `set` writes the
+//     new value and dispatches all current subscribers.
+//   - `handle-react` installs a react handler. Each installation gets a
 //     unique `obs-id` and tracks its read sources. On a subscriber fire, the
 //     installation pops sources after the triggering signal and unsubscribes
 //     from those signals — the algorithmic analog of Solid's sources-diff.
 //   - `owner` and `handle-owner` give an explicit ownership scope. Each
-//     `handle-eff` installation registers a self-disposer with the ambient
+//     `handle-react` installation registers a self-disposer with the ambient
 //     owner, so that disposing the owner tears down all its installations
 //     (used by `If` and `For` for branch-swap cleanup).
 //   - `render` walks an `html` tree producing real DOM nodes; per-kid and
-//     per-attr `handle-eff` scopes keep captured continuations tight.
+//     per-attr `handle-react` scopes keep captured continuations tight.
 //
 // Subscribers are deduplicated per (signal, obs-id), so multiple `get` calls
 // in the same handler scope only register one subscriber per signal.
@@ -71,7 +79,8 @@ pub struct state<a>
     subscribers : ref<global, list<(int, () -> <io, owner> ())>>
     sid: int
 
-pub fun state(initial: a) : <st<global>, ndet> state<a>
+// Allocate a fresh cell with the given initial value.
+pub fun state/new(initial: a) : <st<global>, ndet> state<a>
     State(item = ref(initial), subscribers = ref([]), sid = unique())
 
 // Reactive read/write operations. `get` subscribes the current handler
@@ -80,11 +89,16 @@ pub effect react
     ctl get<a>(s: state<a>) : a
     ctl set<a>(s: state<a>, v: a) : ()
 
-// Ownership scope for cleanup. Every `handle-eff` installation registers a
+// A side-effecting cleanup callback. Stored in owner scopes and signal
+// cleanup slots; running it unsubscribes its installation or disposes a
+// scope.
+pub alias disposer = () -> <read<global>, write<global>, div> ()
+
+// Ownership scope for cleanup. Every `handle-react` installation registers a
 // self-disposer with the ambient owner; disposing the owner walks those
 // disposers, unsubscribing each installation from every signal it held.
 pub effect owner
-    fun register-disposer(d: () -> <read<global>, write<global>, div> ()) : ()
+    fun register-disposer(d: disposer) : ()
 
 // Run `action` under a fresh owner scope. Returns the action's result and a
 // disposer that, when called, runs every disposer registered during action.
@@ -94,14 +108,14 @@ pub effect owner
 //   val (node, dispose) = handle-owner(fn() ...)
 //   ...
 //   dispose()   // tears down everything created inside the scope
-pub fun handle-owner(action: () -> <io, owner> a) : <io> (a, () -> <read<global>, write<global>, div> ())
-    val disposers : ref<global, list<() -> <read<global>, write<global>, div> ()>> = ref([])
+pub fun handle-owner(action: () -> <io, owner> a) : <io> (a, disposer)
+    val disposers : ref<global, list<disposer>> = ref([])
     val result =
         with handler
             fun register-disposer(d)
                 disposers := Cons(d, !disposers)
         action()
-    val dispose-all : () -> <read<global>, write<global>, div> () = fn()
+    val dispose-all : disposer = fn()
         (!disposers).foreach fn(d) d()
         disposers := []
     (result, dispose-all)
@@ -118,14 +132,14 @@ pub fun handle-owner(action: () -> <io, owner> a) : <io> (a, () -> <read<global>
 //     resumption — when fired by a later `set`, it pops everything in
 //     `sources` after `s` (cleaning stale subscriptions) before resuming;
 //   - on `set(s, v)`: write `s.item := v` and fire every subscriber on `s`.
-pub fun handle-eff(
+pub fun handle-react(
     action: () -> <io, react, owner> a
 ) : <io, owner> a
     val obs-id = unique()
-    val sources : ref<global, list<(int, () -> <read<global>, write<global>, div> ())>> = ref([])
+    val sources : ref<global, list<(int, disposer)>> = ref([])
 
     // Tear-down: walk our sources, run each cleanup, then empty the list.
-    val self-dispose : () -> <read<global>, write<global>, div> () = fn()
+    val self-dispose : disposer = fn()
         (!sources).foreach fn((_, cleanup)) cleanup()
         sources := []
     register-disposer(self-dispose)
@@ -142,7 +156,7 @@ pub fun handle-eff(
                 // First time we see `s` in this run: register the cleanup
                 // (which removes us from s.subscribers later if/when we
                 // unsubscribe) and append `s` to our sources list.
-                val cleanup : () -> <read<global>, write<global>, div> () = fn()
+                val cleanup : disposer = fn()
                     val sref = s.subscribers
                     sref := (!sref).filter(fn((key, _)) key != obs-id)
                 sources := !sources ++ [(sid, cleanup)]
@@ -176,7 +190,7 @@ pub fun handle-eff(
 // react handler.
 pub fun mount(component: () -> <io, react, owner> html): <io> dom-node
     val (node, _dispose) = handle-owner(fn()
-        with handle-eff
+        with handle-react
         render(component())
     )
     node
@@ -221,12 +235,12 @@ pub fun render(h: html): <io, react, owner> dom-node
             // branch's owner, clear the anchor, and remount the new branch
             // under a fresh owner.
             val anchor = create-element("span")
-            val current-dispose : ref<global, () -> <read<global>, write<global>, div> ()> = ref(fn() ())
+            val current-dispose : ref<global, disposer> = ref(fn() ())
             val branch = if get(cond) then then-b else else-b
             (!current-dispose)()
             clear-children(anchor)
             val (child, dispose) = handle-owner(fn()
-                with handle-eff
+                with handle-react
                 render(branch)
             )
             current-dispose := dispose
@@ -237,33 +251,33 @@ pub fun render(h: html): <io, react, owner> dom-node
             // render's owner, clear the anchor, and re-render every item
             // under a fresh per-item react scope.
             val anchor = create-element("span")
-            val current-dispose : ref<global, () -> <read<global>, write<global>, div> ()> = ref(fn() ())
+            val current-dispose : ref<global, disposer> = ref(fn() ())
             val xs = get(items)
             (!current-dispose)()
             clear-children(anchor)
             val (_unit, dispose) = handle-owner(fn()
                 xs.foreach fn(item)
-                    with handle-eff
+                    with handle-react
                     append-child(anchor, render(item))
             )
             current-dispose := dispose
             anchor
 
 // Render an element node with attributes and children. Each attribute and
-// each child is wrapped in its own `handle-eff` so the captured continuation
+// each child is wrapped in its own `handle-react` so the captured continuation
 // from any internal `get` is scoped tightly — only that one attribute or
 // child re-runs when its dependencies change.
 fun render-element(tag: string, attrs: list<attr>, kids: list<html>): <io, react, owner> dom-node
     val node = create-element(tag)
     attrs.foreach fn(a)
-        handle-eff(fn() apply-attr(node, a))
+        handle-react(fn() apply-attr(node, a))
     kids.foreach fn(k)
-        val child = handle-eff(fn() render(k))
+        val child = handle-react(fn() render(k))
         append-child(node, child)
     node
 
 // Apply one attribute to an element. The reactive read happens here, so the
-// surrounding `handle-eff` (per attribute) tightly scopes the captured
+// surrounding `handle-react` (per attribute) tightly scopes the captured
 // continuation.
 fun apply-attr(node: dom-node, a: attr): <io, react> ()
     match a
@@ -285,7 +299,7 @@ pub fun add-event-listener(
 ): io ()
     add-event-listener-raw(node, kind, fn()
         val (_, dispose) = handle-owner(fn()
-            with handle-eff
+            with handle-react
             cb()
         )
         dispose()
@@ -300,7 +314,7 @@ pub fun add-event-listener-string(
 ): io ()
     add-event-listener-string-raw(node, kind, fn(s)
         val (_, dispose) = handle-owner(fn()
-            with handle-eff
+            with handle-react
             cb(s)
         )
         dispose()
@@ -309,7 +323,10 @@ pub fun add-event-listener-string(
 // Split a sources list at the first occurrence of `sid`. Returns
 // `(prefix-including-sid, suffix-after-sid)`. Used on subscriber fire to
 // determine which downstream sources to drop.
-fun split-after(sources, sid: int)
+//
+// Structurally recursive on `sources`, so should be total — Koka may infer
+// this directly. If it ever flags this as `div`, wrap the recursive call in
+fun split-after(sources: list<(int, disposer)>, sid: int) : (list<(int, disposer)>, list<(int, disposer)>)
     match sources
         Nil -> (Nil, Nil)
         Cons((key, cleanup), xs) ->

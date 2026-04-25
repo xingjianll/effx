@@ -1,3 +1,11 @@
+/*----------------------------------------------------------------------------
+   Copyright 2026, Kevin Liu
+
+   Licensed under the MIT License. You may not use this file except in
+   compliance with the License. A copy of the License can be found in the
+   LICENSE file at the root of this distribution.
+----------------------------------------------------------------------------*/
+
 // Effx — JS/DOM bindings.
 //
 // Raw `extern` declarations for browser DOM operations and event registration.
@@ -44,7 +52,7 @@ pub extern clear-children(node: dom-node): io ()
 
 // Register a click-style listener that takes no event payload.
 // This is the raw form: callers in the main module wrap this so that
-// the callback can use `state-eff` operations.
+// the callback can use `react` operations.
 pub extern add-event-listener-raw(
     node: dom-node,
     kind: string,
