@@ -38,6 +38,11 @@ pub extern append-child(parent: dom-node, child: dom-node): io ()
 pub extern set-attribute(node: dom-node, name: string, value: string): io ()
     js inline "(#1).setAttribute(#2, #3)"
 
+// Remove an attribute from a node. Used to implement boolean attrs whose
+// "false" state means the attribute is absent from the DOM.
+pub extern remove-attribute(node: dom-node, name: string): io ()
+    js inline "(#1).removeAttribute(#2)"
+
 // Replace a node's text content.
 pub extern set-text-content(node: dom-node, text: string): io ()
     js inline "(#1).textContent = #2"
