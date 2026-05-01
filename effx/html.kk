@@ -63,15 +63,6 @@ pub type attr
     Attr(name: string, value: state<string>)
     BoolAttr(name: string, value: state<bool>)
 
-// Render a component into a DOM node. Installs the top-level owner and
-// react handler.
-pub fun mount(component: () -> <io, react, owner> html): <io> dom-node
-    val (node, _dispose) = handle-owner(fn()
-        with handle-react
-        render(component())
-    )
-    node
-
 // Render an `html` value to a DOM node. Each `get` inside the body subscribes
 // the surrounding handler installation, so the resulting DOM updates when
 // any read state changes.
@@ -204,5 +195,3 @@ pub fun add-event-listener-string(
             dispose()
         )
     )
-
-// The builder DSL (`build`, `div`, `span`, `text`, ...) lives in `dsl.kk`.

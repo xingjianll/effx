@@ -39,6 +39,7 @@
 
 module dsl
 
+import bindings
 import effx
 import html
 
@@ -46,6 +47,15 @@ import html
 // `add-kid` appends a child to the current scope.
 pub effect html-builder
     fun add-kid(h: html) : ()
+
+// Mount a component build-tree into a DOM node. Installs the top-level
+// owner and react handlers, runs `build` to assemble the html, then renders.
+pub fun mount(component: () -> <io, react, owner, html-builder> ()) : <io> dom-node
+    val (node, _dispose) = handle-owner(fn()
+        with handle-react
+        render(build(component))
+    )
+    node
 
 // Convert a build-tree into a single `html` value. If the tree produced
 // exactly one kid, returns it directly; otherwise wraps the kids in a

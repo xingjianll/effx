@@ -19,35 +19,32 @@ import dsl
 // Renders a `div` with a header `h2(title)` followed by whatever the caller
 // emits in the trailing block.
 // Narrow card: no extra effects in row. Just wraps children in a div.
-fun card(build-tree: () -> <html-builder|e> ()) : <html-builder|e> ()
+fun card(x: int, build-tree: () -> <html-builder|e> ()) : <html-builder|e> ()
     div
         build-tree()
 
-pub fun app() : <io, react, owner> html
+pub fun app() : <io, react, owner, html-builder> ()
     val name = state/new("world")
 
-    build
-        div
-            h1
-                text-lit("Custom component demo")
+    div
+        // h1
+        //     text-lit("Custom component demo")
+        card(1)
+            p
+                text-lit("hello")
+            p
+                text-lit("world")
+        card(2)
+            p
+                text-lit("Hello, ")
+                text(name)
+                text-lit("!")
+            direct/input(state/new("text"), name, fn(s) name.set(s))
 
-            card
+        card(4)
+            card(3)
                 p
-                    text-lit("hello")
-                p
-                    text-lit("world")
-
-            card
-                p
-                    text-lit("Hello, ")
-                    text(name)
-                    text-lit("!")
-                direct/input(state/new("text"), name, fn(s) name.set(s))
-
-            card
-                card
-                    p
-                        text-lit("a child of an inner card")
+                    text-lit("a child of an inner card")
 
 pub fun main() : <io> ()
     val root = get-element-by-id("root")

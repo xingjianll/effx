@@ -163,4 +163,3 @@ pub fun split-after(sources: list<(int, disposer)>, sid: int) : (list<(int, disp
             else
                 val (kept, popped) = split-after(xs, sid)
                 (Cons((key, cleanup), kept), popped)
-
