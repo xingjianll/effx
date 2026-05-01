@@ -61,7 +61,7 @@ pub extern clear-children(node: dom-node): io ()
 pub extern add-event-listener-raw(
     node: dom-node,
     kind: string,
-    cb: () -> <io> ()
+    cb: () -> <io-total, div> ()
 ): io ()
     js inline "(#1).addEventListener(#2, #3)"
 
@@ -69,6 +69,6 @@ pub extern add-event-listener-raw(
 pub extern add-event-listener-string-raw(
     node: dom-node,
     kind: string,
-    cb: (string) -> <io> ()
+    cb: (string) -> <io-total, div> ()
 ): io ()
     js inline "(#1).addEventListener(#2, e => (#3)(e.target.value))"

@@ -173,32 +173,36 @@ fun apply-attr(node: dom-node, a: attr): <io, react> ()
 // react handler, then disposes the scope when the callback returns. This
 // prevents subscribers captured during the callback from leaking past the
 // event boundary.
-pub fun add-event-listener(
-    node: dom-node,
+pub fun add-event-listener(                                                                                                                                                                                         
+    node: dom-node,                                       
     kind: string,
     cb: () -> <io, react> ()
 ): io ()
-    node.add-event-listener-raw(kind, fn()
-        val (_, dispose) = handle-owner(fn()
-            with handle-react
-            cb()
-        )
-        dispose()
+    node.add-event-listener-raw(kind, fn()                                                                                                                                                                          
+        @default-exn(fn()
+            val (_, dispose) = handle-owner(fn()                                                                                                                                                                    
+                with handle-react                         
+                cb()
+            )                                                                                                                                                                                                       
+            dispose()
+        )                                                                                                                                                                                                           
     )
 
 // Attach an input-style listener whose callback receives a string and can
 // use `react`. Same scoping rules as `add-event-listener`.
-pub fun add-event-listener-string(
-    node: dom-node,
-    kind: string,
+pub fun add-event-listener-string(                                                                                                                                                                                  
+    node: dom-node,  
+    kind: string,                                                                                                                                                                                                   
     cb: (string) -> <io, react> ()
-): io ()
+): io ()                                                                                                                                                                                                            
     node.add-event-listener-string-raw(kind, fn(s)
-        val (_, dispose) = handle-owner(fn()
-            with handle-react
-            cb(s)
+        @default-exn(fn()                                                                                                                                                                                           
+            val (_, dispose) = handle-owner(fn()                                                                                                                                                                    
+                with handle-react
+                cb(s)                                                                                                                                                                                               
+            )        
+            dispose()
         )
-        dispose()
     )
 
 // The builder DSL (`build`, `div`, `span`, `text`, ...) lives in `dsl.kk`.

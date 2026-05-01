@@ -49,7 +49,7 @@ pub fun app() : <io, react, owner> html
                     p
                         text-lit("a child of an inner card")
 
-pub fun main() : io ()
+pub fun main() : <io> ()
     val root = get-element-by-id("root")
     val node = mount(app)
     root.append-child(node)
