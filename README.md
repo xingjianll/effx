@@ -2,7 +2,7 @@
 
 An experimental fine-grained reactive web UI framework for [Koka](https://koka-lang.github.io/), built on algebraic effect handlers.
 
-Effx asks what a reactivity system in the style of Solid.js looks like when the reactive machinery is expressed directly through effects and handlers rather than a hand written runtime. Dependency tracking, subscriptions, and ownership all arise from a small set of effect operations. Reading a reactive cell captures a continuation and writing to the cell resumes it. There is no virtual DOM and no diffing. When a value changes, only the narrowest computation that observed it runs again, down to a single attribute or a single text node.
+Effx implements Solid.js style reactivity using effect handlers instead of a hand written runtime. Dependency tracking, subscriptions, and ownership all arise from a small set of effect operations. Reading a reactive cell captures a continuation and writing to the cell resumes it. There is no virtual DOM and no diffing. When a value changes, only the narrowest computation that observed it runs again, down to a single attribute or a single text node.
 
 ## How it works
 
