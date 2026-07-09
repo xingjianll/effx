@@ -73,10 +73,6 @@ Examples:
 - `examples/card-demo.kk` — a reusable component that accepts indented children
 - `examples/sheet.kk` — a spreadsheet: formulas with ranges and functions, selection, undo/redo, copy/paste, drag-fill, column resize/sort/filter, find/replace
 
-## Status
-
-This is a research/hobby project and the API changes freely. Known rough edges include the small set of built-in elements and the whole-subtree re-render on `branch`/`each` changes.
-
 ## License
 
 MIT — see [LICENSE](LICENSE).
